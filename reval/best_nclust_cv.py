@@ -32,9 +32,17 @@ class FindBestClustCV(RelativeValidation):
         """
         super().__init__(s, c, nrand)
         self.nfold = nfold
-        self.nclust_range = nclust_range
+        if len(nclust_range) == 1:
+            self.nclust_range = list(range(1, nclust_range[0]))
+        elif len(nclust_range) == 2:
+            self.nclust_range = list(range(nclust_range[0], nclust_range[1]))
+        elif len(nclust_range) == 3:
+            self.nclust_range = list(range(nclust_range[0], nclust_range[1], nclust_range[2]))
+        else:
+            self.nclust_range = nclust_range
+            
 
-    def best_nclust(self, data, iter_cv=1, strat_vect=None):
+    def best_nclust(self, data, iter_cv=1, strat_vect=None, verbose=False):
         """
         This method takes as input the training dataset and the
         stratification vector (if available) and performs a
@@ -55,7 +63,11 @@ class FindBestClustCV(RelativeValidation):
         reval = RelativeValidation(self.class_method, self.clust_method, self.nrand)
         metrics = {'train': {}, 'val': {}}
         check_dist = {'train': {}, 'val': {}}
-        for ncl in range(self.nclust_range[0], self.nclust_range[1]):
+        
+        i = 1
+        for ncl in self.nclust_range:
+            if verbose:
+                print(f'{i} iter - ({ncl}) Clusters / {len(self.nclust_range)} iter - max clusters({self.nclust_range[-1]})')
             if strat_vect is not None:
                 kfold = RepeatedStratifiedKFold(n_splits=self.nfold, n_repeats=iter_cv, random_state=42)
             else:
@@ -85,8 +97,11 @@ class FindBestClustCV(RelativeValidation):
                     check_dist['val'].setdefault(ncl, list()).append(ms_val)
                 except ValueError:
                     pass
+            if verbose:
+                print(np.mean(norm_stab_tr), _confint(norm_stab_tr))
             metrics['train'][ncl] = (np.mean(norm_stab_tr), _confint(norm_stab_tr))
             metrics['val'][ncl] = (np.mean(norm_stab_val), _confint(norm_stab_val))
+            i+=1
 
         val_score = np.array([val[0] for val in metrics['val'].values()])
         bestscore = min(val_score)
